@@ -333,6 +333,23 @@ amr.isPlaying();
 amr.isPaused();
 ```
 
+```javascript
+/**
+ * Set the playback rate
+ * @since 1.1.6
+ * @param {Number} time rate (floating point number)
+ */
+amr.setPlaybackRate(1.5);
+```
+```javascript
+/**
+ * Get playback rate
+ * @since 1.1.6
+ */
+amr.getPlaybackRate();
+```
+
+
 #### Recording controls
 
 ```javascript
