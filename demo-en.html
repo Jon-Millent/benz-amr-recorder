@@ -86,7 +86,6 @@
 
         rate.onchange = function (e) {
             amr.setPlaybackRate(parseFloat(e.target.value))
-
             if (amr.isPlaying()) {
                 amr.pause()
                 setTimeout(function () {

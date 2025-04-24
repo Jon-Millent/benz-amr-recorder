@@ -25619,7 +25619,7 @@
     }, {
       key: "getPlaybackRate",
       value: function getPlaybackRate() {
-        return _recorderControl.getPlaybackRate();
+        return this._recorderControl.getPlaybackRate();
       }
     }], [{
       key: "rawAMRData2Blob",

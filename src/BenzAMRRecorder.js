@@ -692,7 +692,7 @@ export default class BenzAMRRecorder {
      * @return {number}
      */
     getPlaybackRate() {
-        return _recorderControl.getPlaybackRate();
+        return this._recorderControl.getPlaybackRate();
     }
 
     static rawAMRData2Blob(data) {
