@@ -3,26 +3,33 @@
   typeof define === 'function' && define.amd ? define(factory) :
   (global = typeof globalThis !== 'undefined' ? globalThis : global || self, global.BenzAMRRecorder = factory());
 })(this, (function () {
-  function _classCallCheck(instance, Constructor) {
-    if (!(instance instanceof Constructor)) {
-      throw new TypeError("Cannot call a class as a function");
+  function _classCallCheck(a, n) {
+    if (!(a instanceof n)) throw new TypeError("Cannot call a class as a function");
+  }
+  function _defineProperties(e, r) {
+    for (var t = 0; t < r.length; t++) {
+      var o = r[t];
+      o.enumerable = o.enumerable || !1, o.configurable = !0, "value" in o && (o.writable = !0), Object.defineProperty(e, _toPropertyKey(o.key), o);
     }
   }
-
-  function _defineProperties(target, props) {
-    for (var i = 0; i < props.length; i++) {
-      var descriptor = props[i];
-      descriptor.enumerable = descriptor.enumerable || false;
-      descriptor.configurable = true;
-      if ("value" in descriptor) descriptor.writable = true;
-      Object.defineProperty(target, descriptor.key, descriptor);
-    }
+  function _createClass(e, r, t) {
+    return r && _defineProperties(e.prototype, r), t && _defineProperties(e, t), Object.defineProperty(e, "prototype", {
+      writable: !1
+    }), e;
   }
-
-  function _createClass(Constructor, protoProps, staticProps) {
-    if (protoProps) _defineProperties(Constructor.prototype, protoProps);
-    if (staticProps) _defineProperties(Constructor, staticProps);
-    return Constructor;
+  function _toPrimitive(t, r) {
+    if ("object" != typeof t || !t) return t;
+    var e = t[Symbol.toPrimitive];
+    if (void 0 !== e) {
+      var i = e.call(t, r || "default");
+      if ("object" != typeof i) return i;
+      throw new TypeError("@@toPrimitive must return a primitive value.");
+    }
+    return ("string" === r ? String : Number)(t);
+  }
+  function _toPropertyKey(t) {
+    var i = _toPrimitive(t, "string");
+    return "symbol" == typeof i ? i : i + "";
   }
 
   var commonjsGlobal = typeof globalThis !== 'undefined' ? globalThis : typeof window !== 'undefined' ? window : typeof global !== 'undefined' ? global : typeof self !== 'undefined' ? self : {};
@@ -290,80 +297,66 @@
   var AudioContext = window.AudioContext || window.webkitAudioContext || window.mozAudioContext;
   var ctx = null;
   var isSupport = true;
-
   if (!AudioContext) {
     isSupport = false;
     console.warn('Web Audio API is Unsupported.');
   }
-
-  var RecorderControl =
-  /*#__PURE__*/
-  function () {
+  var RecorderControl = /*#__PURE__*/function () {
     function RecorderControl() {
       _classCallCheck(this, RecorderControl);
-
       this._recorderStream = null;
       this._recorderStreamSourceNode = null;
       this._recorder = null;
       this._isRecording = false;
       this._curSourceNode = null;
+      this._playbackRate = 1.0;
     }
-
-    _createClass(RecorderControl, [{
+    return _createClass(RecorderControl, [{
       key: "playPcm",
-      value: function playPcm(samples, sampleRate, onEnded, startPos) {
+      value:
+      // 默认倍速为 1.0
+
+      function playPcm(samples) {
+        var sampleRate = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : 8000;
+        var onEnded = arguments.length > 2 ? arguments[2] : undefined;
+        var startPos = arguments.length > 3 && arguments[3] !== undefined ? arguments[3] : 0;
+        var rate = arguments.length > 4 && arguments[4] !== undefined ? arguments[4] : null;
         if (!ctx || ctx.state === 'closed') {
           ctx = new AudioContext();
         }
-
         if (ctx.state === 'interrupted' || ctx.state === 'suspended') {
           ctx.resume();
         }
-
-        sampleRate = sampleRate || 8000;
         this.stopPcm();
-
-        var _samples = startPos && startPos > 0.001 ? // 根据开始位置（秒数）截取播放采样
-        samples.slice(sampleRate * startPos) : samples;
-
+        var _samples = startPos > 0.001 ? samples.slice(sampleRate * startPos) : samples;
         if (!_samples.length) {
-          return onEnded();
+          return onEnded === null || onEnded === void 0 ? void 0 : onEnded();
         }
-
         var buffer, channelBuffer;
-        this._curSourceNode = ctx['createBufferSource']();
-
+        this._curSourceNode = ctx.createBufferSource();
+        var actualRate = rate !== null && rate !== void 0 ? rate : this._playbackRate;
         try {
-          buffer = ctx['createBuffer'](1, _samples.length, sampleRate);
+          buffer = ctx.createBuffer(1, _samples.length, sampleRate);
+          this._curSourceNode.playbackRate.value = actualRate;
         } catch (e) {
-          // iOS 不支持 22050 以下的采样率，于是先提升采样率，然后用慢速播放
           if (sampleRate < 11025) {
-            /*buffer = ctx['createBuffer'](1, _samples.length * 3, sampleRate * 3);
-            _samples = this._increaseSampleRate(_samples, 3);*/
-            buffer = ctx['createBuffer'](1, _samples.length, sampleRate * 4);
-            this._curSourceNode['playbackRate'].value = 0.25;
+            buffer = ctx.createBuffer(1, _samples.length, sampleRate * 4);
+            this._curSourceNode.playbackRate.value = actualRate * 0.25;
           } else {
-            /*buffer = ctx['createBuffer'](1, _samples.length * 2, sampleRate * 2);
-            _samples = this._increaseSampleRate(_samples, 2);*/
-            buffer = ctx['createBuffer'](1, _samples.length, sampleRate * 2);
-            this._curSourceNode['playbackRate'].value = 0.5;
+            buffer = ctx.createBuffer(1, _samples.length, sampleRate * 2);
+            this._curSourceNode.playbackRate.value = actualRate * 0.5;
           }
         }
-
-        if (buffer['copyToChannel']) {
-          buffer['copyToChannel'](_samples, 0, 0);
+        if (buffer.copyToChannel) {
+          buffer.copyToChannel(_samples, 0, 0);
         } else {
-          channelBuffer = buffer['getChannelData'](0);
+          channelBuffer = buffer.getChannelData(0);
           channelBuffer.set(_samples);
         }
-
-        this._curSourceNode['buffer'] = buffer;
-        this._curSourceNode['loop'] = false;
-
-        this._curSourceNode['connect'](ctx['destination']);
-
+        this._curSourceNode.buffer = buffer;
+        this._curSourceNode.loop = false;
+        this._curSourceNode.connect(ctx.destination);
         this._curSourceNode.onended = onEnded;
-
         this._curSourceNode.start();
       }
     }, {
@@ -371,9 +364,18 @@
       value: function stopPcm() {
         if (this._curSourceNode) {
           this._curSourceNode.stop();
-
           this._curSourceNode = null;
         }
+      }
+    }, {
+      key: "setPlaybackRate",
+      value: function setPlaybackRate(rate) {
+        this._playbackRate = rate;
+      }
+    }, {
+      key: "getPlaybackRate",
+      value: function getPlaybackRate() {
+        return this._playbackRate;
       }
     }, {
       key: "stopPcmSilently",
@@ -385,7 +387,6 @@
       key: "initRecorder",
       value: function initRecorder() {
         var _this = this;
-
         return new Promise(function (resolve, reject) {
           var s = function s(stream) {
             _this._recorderStream = stream;
@@ -394,11 +395,9 @@
             _this._isRecording = false;
             resolve();
           };
-
           var j = function j(e) {
             reject(e);
           };
-
           if (!_this._recorder) {
             if (window.navigator.mediaDevices && window.navigator.mediaDevices.getUserMedia) {
               window.navigator.mediaDevices.getUserMedia({
@@ -426,9 +425,7 @@
       value: function startRecord() {
         if (this._recorder) {
           this._recorder.clear();
-
           this._recorder.record();
-
           this._isRecording = true;
         }
       }
@@ -437,7 +434,6 @@
       value: function stopRecord() {
         if (this._recorder) {
           this._recorder.stop();
-
           this._isRecording = false;
         }
       }
@@ -445,7 +441,6 @@
       key: "generateRecordSamples",
       value: function generateRecordSamples() {
         var _this2 = this;
-
         return new Promise(function (resolve) {
           if (_this2._recorder) {
             _this2._recorder.getBuffer(function (buffers) {
@@ -461,13 +456,10 @@
           this._recorderStream.getTracks().forEach(function (track) {
             track.stop();
           });
-
           this._recorderStream = null;
         }
-
         if (this._recorder) {
           this._recorder.release();
-
           this._recorder = null;
         }
       }
@@ -499,7 +491,6 @@
             // 把多声道音频 mix 成单声道
             var numberOfChannels = audioBuf.numberOfChannels;
             var dest = new Float32Array(audioBuf.length);
-
             switch (numberOfChannels) {
               default:
               case 1:
@@ -507,59 +498,44 @@
                   dest = audioBuf.getChannelData(0);
                   break;
                 }
-
               case 2:
                 {
                   var left = audioBuf.getChannelData(0);
                   var right = audioBuf.getChannelData(1);
-
                   for (var i = 0, l = dest.length; i < l; i++) {
                     dest[i] = .5 * (left[i] + right[i]);
                   }
-
                   break;
                 }
-
               case 4:
                 {
                   var _left = audioBuf.getChannelData(0);
-
                   var _right = audioBuf.getChannelData(1);
-
                   var sLeft = audioBuf.getChannelData(2);
                   var sRight = audioBuf.getChannelData(3);
-
                   for (var _i = 0, _l = dest.length; _i < _l; _i++) {
                     dest[_i] = .25 * (_left[_i] + _right[_i] + sLeft[_i] + sRight[_i]);
                   }
-
                   break;
                 }
-
               case 6:
                 {
                   var _left2 = audioBuf.getChannelData(0);
-
                   var _right2 = audioBuf.getChannelData(1);
-
                   var center = audioBuf.getChannelData(2);
-
                   var _sLeft = audioBuf.getChannelData(4);
-
                   var _sRight = audioBuf.getChannelData(5);
-
                   for (var _i2 = 0, _l2 = dest.length; _i2 < _l2; _i2++) {
                     dest[_i2] = 0.7071 * (_left2[_i2] + _right2[_i2]) + center[_i2] + 0.5 * (_sLeft[_i2] + _sRight[_i2]);
                   }
-
                   break;
                 }
             }
-
             resolve(dest);
           }, reject);
         });
       }
+
       /*
       static _increaseSampleRate(samples, multiple) {
           let sampleLen = samples.length;
@@ -572,10 +548,7 @@
           return newSamples;
       };
       */
-
     }]);
-
-    return RecorderControl;
   }();
 
   var amrnb = function() {
@@ -24930,198 +24903,175 @@
   var amrWorkerURLObj = (window.URL || window.webkitURL).createObjectURL(new Blob([amrWorkerStr], {
     type: "text/javascript"
   }));
-
-  var BenzAMRRecorder =
-  /*#__PURE__*/
-  function () {
-    /**
-     * @type {boolean}
-     * @private
-     */
-
-    /**
-     * @type {boolean}
-     * @private
-     */
-
-    /**
-     * @type {RecorderControl | null}
-     * @private
-     */
-
-    /**
-     * @type {Float32Array | null}
-     * @private
-     */
-
-    /**
-     * @type {Uint8Array | null}
-     * @private
-     */
-
-    /**
-     * @type {Blob | null}
-     * @private
-     */
-
-    /**
-     * @type {Function | null}
-     * @private
-     */
-
-    /**
-     * @type {Function | null}
-     * @private
-     */
-
-    /**
-     * @type {Function | null}
-     * @private
-     */
-
-    /**
-     * @type {Function | null}
-     * @private
-     */
-
-    /**
-     * @type {Function | null}
-     * @private
-     */
-
-    /**
-     * @type {Function | null}
-     * @private
-     */
-
-    /**
-     * @type {Function | null}
-     * @private
-     */
-
-    /**
-     * @type {Function | null}
-     * @private
-     */
-
-    /**
-     * @type {Function | null}
-     * @private
-     */
-
-    /**
-     * @type {boolean}
-     * @private
-     */
-
-    /**
-     * @type {boolean}
-     * @private
-     */
-
-    /**
-     * @type {number}
-     * @private
-     */
-
-    /**
-     * @type {number}
-     * @private
-     */
+  var BenzAMRRecorder = /*#__PURE__*/function () {
     function BenzAMRRecorder() {
       var _this = this;
-
       _classCallCheck(this, BenzAMRRecorder);
-
+      /**
+       * @type {boolean}
+       * @private
+       */
       this._isInit = false;
+      /**
+       * @type {boolean}
+       * @private
+       */
       this._isInitRecorder = false;
+      /**
+       * @type {RecorderControl | null}
+       * @private
+       */
       this._recorderControl = new RecorderControl();
+      /**
+       * @type {Float32Array | null}
+       * @private
+       */
       this._samples = new Float32Array(0);
+      /**
+       * @type {Uint8Array | null}
+       * @private
+       */
       this._rawData = new Uint8Array(0);
+      /**
+       * @type {Blob | null}
+       * @private
+       */
       this._blob = null;
+      /**
+       * @type {Function | null}
+       * @private
+       */
       this._onEnded = null;
+      /**
+       * @type {Function | null}
+       * @private
+       */
       this._onAutoEnded = null;
+      /**
+       * @type {Function | null}
+       * @private
+       */
       this._onPlay = null;
+      /**
+       * @type {Function | null}
+       * @private
+       */
       this._onPause = null;
+      /**
+       * @type {Function | null}
+       * @private
+       */
       this._onResume = null;
+      /**
+       * @type {Function | null}
+       * @private
+       */
       this._onStop = null;
+      /**
+       * @type {Function | null}
+       * @private
+       */
       this._onStartRecord = null;
+      /**
+       * @type {Function | null}
+       * @private
+       */
       this._onCancelRecord = null;
+      /**
+       * @type {Function | null}
+       * @private
+       */
       this._onFinishRecord = null;
+      /**
+       * @type {boolean}
+       * @private
+       */
       this._isPlaying = false;
+      /**
+       * @type {boolean}
+       * @private
+       */
       this._isPaused = false;
+      /**
+       * @type {number}
+       * @private
+       */
       this._startCtxTime = 0.0;
+      /**
+       * @type {number}
+       * @private
+       */
       this._pauseTime = 0.0;
-
+      /**
+       * init 之前先播放一个空音频。
+       * 因为有些环境（如iOS）播放首个音频时禁止自动、异步播放，
+       * 播放空音频防止加载后立即播放的功能失效。
+       * 但即使如此，initWith* 仍然须放入一个用户事件中
+       * @private
+       */
       this._playEmpty = function () {
         _this._recorderControl.playPcm(new Float32Array(10), 24000);
       };
-
       this._onEndCallback = function () {
         if (_this._isPlaying) {
           _this._isPlaying = false;
-
           if (_this._onStop) {
             _this._onStop();
           }
-
           if (_this._onAutoEnded) {
             _this._onAutoEnded();
           }
         }
-
         if (!_this._isPaused) {
           if (_this._onEnded) {
             _this._onEnded();
           }
         }
       };
-
+      /*
+      static encodeAMR(samples, sampleRate) {
+          sampleRate = sampleRate || 8000;
+          return AMR.encode(samples, sampleRate, 7);
+      }
+      */
       this._runAMRWorker = function (msg, resolve) {
         var amrWorker = new Worker(amrWorkerURLObj);
         amrWorker.postMessage(msg);
-
         amrWorker.onmessage = function (e) {
           resolve(e.data.amr);
           amrWorker.terminate();
         };
       };
     }
+
     /**
      * 是否已经初始化
      * @return {boolean}
      */
-
-
-    _createClass(BenzAMRRecorder, [{
+    return _createClass(BenzAMRRecorder, [{
       key: "isInit",
       value: function isInit() {
         return this._isInit;
       }
+
       /**
        * 使用浮点数据初始化
        * @param {Float32Array} array
        * @return {Promise}
        */
-
     }, {
       key: "initWithArrayBuffer",
       value: function initWithArrayBuffer(array) {
         var _this2 = this;
-
         if (this._isInit || this._isInitRecorder) {
           BenzAMRRecorder.throwAlreadyInitialized();
         }
-
         this._playEmpty();
-
         return new Promise(function (resolve, reject) {
           var u8Array = new Uint8Array(array);
-
           _this2.decodeAMRAsync(u8Array).then(function (samples) {
             _this2._samples = samples;
             _this2._isInit = true;
-
             if (!_this2._samples) {
               RecorderControl.decodeAudioArrayBufferByContext(array).then(function (data) {
                 _this2._isInit = true;
@@ -25143,89 +25093,75 @@
           });
         });
       }
+
       /**
        * 使用 Blob 对象初始化（ <input type="file">）
        * @param {Blob} blob
        * @return {Promise}
        */
-
     }, {
       key: "initWithBlob",
       value: function initWithBlob(blob) {
         var _this3 = this;
-
         if (this._isInit || this._isInitRecorder) {
           BenzAMRRecorder.throwAlreadyInitialized();
         }
-
         this._playEmpty();
-
         this._blob = blob;
         var p = new Promise(function (resolve) {
           var reader = new FileReader();
-
           reader.onload = function (e) {
             resolve(e.target.result);
           };
-
           reader.readAsArrayBuffer(blob);
         });
         return p.then(function (data) {
           return _this3.initWithArrayBuffer(data);
         });
       }
+
       /**
        * 使用 url 初始化
        * @param {string} url
        * @return {Promise}
        */
-
     }, {
       key: "initWithUrl",
       value: function initWithUrl(url) {
         var _this4 = this;
-
         if (this._isInit || this._isInitRecorder) {
           BenzAMRRecorder.throwAlreadyInitialized();
         }
-
         this._playEmpty();
-
         var p = new Promise(function (resolve, reject) {
           var xhr = new XMLHttpRequest();
           xhr.open('GET', url, true);
           xhr.responseType = 'arraybuffer';
-
           xhr.onload = function () {
             resolve(this.response);
           };
-
           xhr.onerror = function () {
             reject(new Error('Failed to fetch ' + url));
           };
-
           xhr.send();
         });
         return p.then(function (array) {
           return _this4.initWithArrayBuffer(array);
         });
       }
+
       /**
        * 初始化录音
        * @return {Promise}
        */
-
     }, {
       key: "initWithRecord",
       value: function initWithRecord() {
         var _this5 = this;
-
         if (this._isInit || this._isInitRecorder) {
           BenzAMRRecorder.throwAlreadyInitialized();
         }
-
         this._playEmpty();
-
         return new Promise(function (resolve, reject) {
           _this5._recorderControl.initRecorder().then(function () {
             _this5._isInitRecorder = true;
@@ -25235,14 +25171,6 @@
           });
         });
       }
-      /**
-       * init 之前先播放一个空音频。
-       * 因为有些环境（如iOS）播放首个音频时禁止自动、异步播放，
-       * 播放空音频防止加载后立即播放的功能失效。
-       * 但即使如此，initWith* 仍然须放入一个用户事件中
-       * @private
-       */
-
     }, {
       key: "on",
       value: function on(action, fn) {
@@ -25251,39 +25179,30 @@
             case 'play':
               this._onPlay = fn;
               break;
-
             case 'stop':
               this._onStop = fn;
               break;
-
             case 'pause':
               this._onPause = fn;
               break;
-
             case 'resume':
               this._onResume = fn;
               break;
-
             case 'ended':
               this._onEnded = fn;
               break;
-
             case 'autoEnded':
               this._onAutoEnded = fn;
               break;
-
             case 'startRecord':
               this._onStartRecord = fn;
               break;
-
             case 'cancelRecord':
               this._onCancelRecord = fn;
               break;
-
             case 'finishRecord':
               this._onFinishRecord = fn;
               break;
-
             case '*':
             case 'all':
               this._onEnded = fn;
@@ -25304,91 +25223,91 @@
       value: function off(action) {
         this.on(action, null);
       }
+
       /**
        * 播放事件
        * @param {Function | null} fn
        */
-
     }, {
       key: "onPlay",
       value: function onPlay(fn) {
         this.on('play', fn);
       }
+
       /**
        * 停止事件（包括播放结束）
        * @param {Function | null} fn
        */
-
     }, {
       key: "onStop",
       value: function onStop(fn) {
         this.on('stop', fn);
       }
+
       /**
        * 暂停事件
        * @param {Function | null} fn
        */
-
     }, {
       key: "onPause",
       value: function onPause(fn) {
         this.on('pause', fn);
       }
+
       /**
        * 继续播放事件
        * @param {Function | null} fn
        */
-
     }, {
       key: "onResume",
       value: function onResume(fn) {
         this.on('resume', fn);
       }
+
       /**
        * 播放结束事件
        * @param {Function | null} fn
        */
-
     }, {
       key: "onEnded",
       value: function onEnded(fn) {
         this.on('ended', fn);
       }
+
       /**
        * 播放完毕自动结束事件
        * @param {Function | null} fn
        */
-
     }, {
       key: "onAutoEnded",
       value: function onAutoEnded(fn) {
         this.on('autoEnded', fn);
       }
+
       /**
        * 开始录音事件
        * @param {Function | null} fn
        */
-
     }, {
       key: "onStartRecord",
       value: function onStartRecord(fn) {
         this.on('startRecord', fn);
       }
+
       /**
        * 结束录音事件
        * @param {Function | null} fn
        */
-
     }, {
       key: "onFinishRecord",
       value: function onFinishRecord(fn) {
         this.on('finishRecord', fn);
       }
+
       /**
        * 放弃录音事件
        * @param {Function | null} fn
        */
-
     }, {
       key: "onCancelRecord",
       value: function onCancelRecord(fn) {
@@ -25396,90 +25315,78 @@
       }
     }, {
       key: "play",
-
+      value:
       /**
        * 播放（重新开始，无视暂停状态）
        * @param {number|string?} startTime 可指定开始位置
        */
-      value: function play(startTime) {
+      function play(startTime) {
         var _startTime = startTime && startTime < this.getDuration() ? parseFloat(startTime) : 0;
-
         if (!this._isInit) {
           throw new Error('Please init AMR first.');
         }
-
         if (this._onPlay) {
           this._onPlay();
         }
-
         this._isPlaying = true;
         this._isPaused = false;
         this._startCtxTime = RecorderControl.getCtxTime() - _startTime;
-
         this._recorderControl.playPcm(this._samples, this._isInitRecorder ? RecorderControl.getCtxSampleRate() : 8000, this._onEndCallback.bind(this), _startTime);
       }
+
       /**
        * 停止
        */
-
     }, {
       key: "stop",
       value: function stop() {
         this._recorderControl.stopPcm();
-
         this._isPlaying = false;
         this._isPaused = false;
-
         if (this._onStop) {
           this._onStop();
         }
       }
+
       /**
        * 暂停
        */
-
     }, {
       key: "pause",
       value: function pause() {
         if (!this._isPlaying) {
           return;
         }
-
         this._isPlaying = false;
         this._isPaused = true;
         this._pauseTime = RecorderControl.getCtxTime() - this._startCtxTime;
-
         this._recorderControl.stopPcm();
-
         if (this._onPause) {
           this._onPause();
         }
       }
+
       /**
        * 从暂停处继续
        */
-
     }, {
       key: "resume",
       value: function resume() {
         if (!this._isPaused) {
           return;
         }
-
         this._isPlaying = true;
         this._isPaused = false;
         this._startCtxTime = RecorderControl.getCtxTime() - this._pauseTime;
-
         this._recorderControl.playPcm(this._samples, this._isInitRecorder ? RecorderControl.getCtxSampleRate() : 8000, this._onEndCallback.bind(this), this._pauseTime);
-
         if (this._onResume) {
           this._onResume();
         }
       }
+
       /**
        * 整合 play() 和 resume()，若在暂停状态则继续，否则从头播放
        */
-
     }, {
       key: "playOrResume",
       value: function playOrResume() {
@@ -25489,10 +25396,10 @@
           this.play();
         }
       }
+
       /**
        * 整合 resume() 和 pause()
        */
-
     }, {
       key: "pauseOrResume",
       value: function pauseOrResume() {
@@ -25502,10 +25409,10 @@
           this.pause();
         }
       }
+
       /**
        * 整合 play() 和 resume() 和 pause()
        */
-
     }, {
       key: "playOrPauseOrResume",
       value: function playOrPauseOrResume() {
@@ -25517,35 +25424,32 @@
           this.play();
         }
       }
+
       /**
        * 跳转到音频指定位置，不改变播放状态
        * @param {number|string} time 指定位置（秒，浮点数）
        */
-
     }, {
       key: "setPosition",
       value: function setPosition(time) {
         var _time = parseFloat(time);
-
         if (_time > this.getDuration()) {
           this.stop();
         } else if (this._isPaused) {
           this._pauseTime = _time;
         } else if (this._isPlaying) {
           this._recorderControl.stopPcmSilently();
-
           this._startCtxTime = RecorderControl.getCtxTime() - _time;
-
           this._recorderControl.playPcm(this._samples, this._isInitRecorder ? RecorderControl.getCtxSampleRate() : 8000, this._onEndCallback.bind(this), _time);
         } else {
           this.play(_time);
         }
       }
+
       /**
        * 获取当前播放位置（秒）
        * @return {Number} 位置，秒，浮点数
        */
-
     }, {
       key: "getCurrentPosition",
       value: function getCurrentPosition() {
@@ -25554,55 +25458,51 @@
         } else if (this._isPlaying) {
           return RecorderControl.getCtxTime() - this._startCtxTime;
         }
-
         return 0;
       }
+
       /**
        * 是否正在播放
        * @return {boolean}
        */
-
     }, {
       key: "isPlaying",
       value: function isPlaying() {
         return this._isPlaying;
       }
+
       /**
        * 是否暂停中
        * @return {boolean}
        */
-
     }, {
       key: "isPaused",
       value: function isPaused() {
         return this._isPaused;
       }
+
       /**
        * 开始录音
        */
-
     }, {
       key: "startRecord",
       value: function startRecord() {
         this._recorderControl.startRecord();
-
         if (this._onStartRecord) {
           this._onStartRecord();
         }
       }
+
       /**
        * 结束录音，并把录制的音频转换成 AMR
        * @return {Promise}
        */
-
     }, {
       key: "finishRecord",
       value: function finishRecord() {
         var _this6 = this;
-
         return new Promise(function (resolve) {
           _this6._recorderControl.stopRecord();
-
           _this6._recorderControl.generateRecordSamples().then(function (samples) {
             _this6._samples = samples;
             return _this6.encodeAMRAsync(samples, RecorderControl.getCtxSampleRate());
@@ -25610,94 +25510,78 @@
             _this6._rawData = rawData;
             _this6._blob = BenzAMRRecorder.rawAMRData2Blob(_this6._rawData);
             _this6._isInit = true;
-
             if (_this6._onFinishRecord) {
               _this6._onFinishRecord();
             }
-
             _this6._recorderControl.releaseRecord();
-
             resolve();
           });
         });
       }
+
       /**
        * 放弃录音
        */
-
     }, {
       key: "cancelRecord",
       value: function cancelRecord() {
         this._recorderControl.stopRecord();
-
         this._recorderControl.releaseRecord();
-
         if (this._onCancelRecord) {
           this._onCancelRecord();
         }
       }
+
       /**
        * 是否正在录音
        * @return {boolean}
        */
-
     }, {
       key: "isRecording",
       value: function isRecording() {
         return this._recorderControl.isRecording();
       }
+
       /**
        * 获取音频的时间长度（单位：秒）
        * @return {number}
        */
-
     }, {
       key: "getDuration",
       value: function getDuration() {
         var rate = this._isInitRecorder ? RecorderControl.getCtxSampleRate() : 8000;
         return this._samples.length / rate;
       }
+
       /**
        * 获取 AMR 文件的 Blob 对象
        * @returns {Blob|null}
        */
-
     }, {
       key: "getBlob",
       value: function getBlob() {
         return this._blob;
       }
+
       /**
        * 注销，清理内部存储
        */
-
     }, {
       key: "destroy",
       value: function destroy() {
         this._recorderControl.stopPcmSilently();
-
         this._recorderControl.stopRecord();
-
         this._recorderControl.releaseRecord();
-
         this.off('*');
         this._recorderControl = null;
         this._samples = null;
         this._rawData = null;
         this._blob = null;
       }
-      /*
-      static encodeAMR(samples, sampleRate) {
-          sampleRate = sampleRate || 8000;
-          return AMR.encode(samples, sampleRate, 7);
-      }
-      */
-
     }, {
       key: "encodeAMRAsync",
       value: function encodeAMRAsync(samples, sampleRate) {
         var _this7 = this;
-
         return new Promise(function (resolve) {
           _this7._runAMRWorker({
             command: 'encode',
@@ -25710,13 +25594,32 @@
       key: "decodeAMRAsync",
       value: function decodeAMRAsync(u8Array) {
         var _this8 = this;
-
         return new Promise(function (resolve) {
           _this8._runAMRWorker({
             command: 'decode',
             buffer: u8Array
           }, resolve);
         });
+      }
+
+      /**
+       * 设置播放速率
+       * @param {number} rate
+       */
+    }, {
+      key: "setPlaybackRate",
+      value: function setPlaybackRate(rate) {
+        this._recorderControl.setPlaybackRate(rate);
+      }
+
+      /**
+       * 获取播放速率
+       * @return {number}
+       */
+    }, {
+      key: "getPlaybackRate",
+      value: function getPlaybackRate() {
+        return _recorderControl.getPlaybackRate();
       }
     }], [{
       key: "rawAMRData2Blob",
@@ -25730,29 +25633,27 @@
       value: function throwAlreadyInitialized() {
         throw new Error('AMR has been initialized. For a new AMR, please generate a new BenzAMRRecorder().');
       }
+
       /**
        * 判断浏览器是否支持播放
        * @return {boolean}
        */
-
     }, {
       key: "isPlaySupported",
       value: function isPlaySupported() {
         return RecorderControl.isPlaySupported();
       }
+
       /**
        * 判断浏览器是否支持录音
        * @return {boolean}
        */
-
     }, {
       key: "isRecordSupported",
       value: function isRecordSupported() {
         return RecorderControl.isRecordSupported();
       }
     }]);
-
-    return BenzAMRRecorder;
   }();
 
   return BenzAMRRecorder;

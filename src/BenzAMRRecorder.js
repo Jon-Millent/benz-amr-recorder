@@ -679,6 +679,22 @@ export default class BenzAMRRecorder {
         })
     }
 
+    /**
+     * 设置播放速率
+     * @param {number} rate
+     */
+    setPlaybackRate(rate) {
+        this._recorderControl.setPlaybackRate(rate)
+    }
+
+    /**
+     * 获取播放速率
+     * @return {number}
+     */
+    getPlaybackRate() {
+        return _recorderControl.getPlaybackRate();
+    }
+
     static rawAMRData2Blob(data) {
         return new Blob([data.buffer], {type: 'audio/amr'});
     }

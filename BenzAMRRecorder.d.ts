@@ -242,6 +242,18 @@ export default class BenzAMRRecorder {
      * 判断浏览器是否支持录音
      */
     public static isRecordSupported(): boolean;
+
+
+    /**
+     * 设置播放速率
+     * @param rate 倍速
+     */
+    public setPlaybackRate(rate: number): void;
+
+    /**
+     * 获取当前播放速率
+     */
+    public getPlaybackRate(): number;
 }
 
 declare class RecorderControl {

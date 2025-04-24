@@ -347,6 +347,21 @@ amr.isPlaying();
  */
 amr.isPaused();
 ```
+```javascript
+/**
+ * 设置播放速率
+ * @since 1.1.6
+ * @param {Number} time 速率（浮点数）
+ */
+amr.setPlaybackRate(1.5);
+```
+```javascript
+/**
+ * 获取播放速率
+ * @since 1.1.6
+ */
+amr.getPlaybackRate();
+```
 
 #### 录音控制
 
